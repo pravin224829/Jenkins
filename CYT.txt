@@ -1,0 +1,74 @@
+﻿this.saveLorDocDetails(commonRequestDto);
+
+
+
+
+
+
+-------------------------
+private void saveLorDocDetails(CommonRequestDto dto) {
+		ClaimantLorDetailsEntity claimantLorDetailsEntity = null;
+		claimantLorDetailsEntity = claimantLorDetailsRepository.findByClaimNumberAndIsActive(dto.getClaimNumber(),
+				CommonConstants.TRUE);
+		if(claimantLorDetailsEntity==null) {
+			claimantLorDetailsEntity = new ClaimantLorDetailsEntity();
+		claimantLorDetailsEntity.setClaimNumber(dto.getClaimNumber());
+		claimantLorDetailsEntity.setCreatedDate(DateUtils.sysDate());
+		claimantLorDetailsEntity.setIsActive(CommonConstants.TRUE);
+		claimantLorDetailsEntity.setCreatedBy(dto.getUserId());
+		claimantLorDetailsEntity.setIsRcsUpdated(CommonConstants.RCS.equals(dto.getSource()));
+		List<Object[]>rawDefDocs=claimantLorDetailsRepository.getDefaultMandatoryDocs(dto.getClaimNumber());
+		List<DocumentNameEntityDto>defDocs=rawDefDocs.stream().map(o->new DocumentNameEntityDto(
+		        (String) o[0], // code
+		        (String) o[1], // name
+		        (String) o[2], // displayName
+		        (String) o[3], // productCategory
+		        o[4] != null ? (Boolean) o[4] : true,
+		        o[5] != null ? (Boolean) o[5] : true,
+		        (String) o[6]  // documentId
+		    )).collect(Collectors.toList());
+		
+		List<ClaimantLorDocDetailsEntity> lorDocDEntities = new ArrayList<>();
+		if (defDocs!=null && !defDocs.isEmpty()) {
+			for (DocumentNameEntityDto lorDocDetailsDto : defDocs) {
+				//if (CommonConstants.TRUE.equals(lorDocDetailsDto.getIsSelect())) {
+					ClaimantLorDocDetailsEntity lorDocDetailsEntity = new ClaimantLorDocDetailsEntity();
+					lorDocDetailsEntity.setClaimNumber(dto.getClaimNumber());
+					lorDocDetailsEntity.setCreatedBy(dto.getUserId());
+					lorDocDetailsEntity.setCreatedDate(DateUtils.sysDate());
+					lorDocDetailsEntity.setDocCode(lorDocDetailsDto.getDocumentId());
+					lorDocDetailsEntity.setDocLabel(lorDocDetailsDto.getName());
+					lorDocDetailsEntity
+							.setIsMandatory(CommonConstants.TRUE.equals(lorDocDetailsDto.getIsMandatory()));
+					lorDocDetailsEntity.setDocDisplayName(lorDocDetailsDto.getDisplayName());
+					lorDocDetailsEntity
+							.setIsActive(CommonConstants.TRUE);
+					lorDocDetailsEntity
+							.setIsDisabled(CommonConstants.FALSE);
+						lorDocDetailsEntity.setDocVisibleRoles(CommonConstants.ALL);
+				
+					//if (!CommonConstants.RCS.equals(dto.getSource())) {
+						//lorDocDetailsEntity.setDocId(lorDocDetailsDto.getDocumentId());
+					//}
+					lorDocDetailsEntity.setClaimantLorDetails(claimantLorDetailsEntity);
+					lorDocDEntities.add(lorDocDetailsEntity);
+				//}
+			}
+			claimantLorDetailsEntity.setClaimantLorDocDetails(lorDocDEntities);
+		}
+		claimantLorDetailsRepository.save(claimantLorDetailsEntity);
+		
+			
+		}
+		
+	}
+---------------------
+
+
+ @Query(value= "SELECT dn.code, dn.name, dn.display_name, dn.product_category, dn.is_active, dn.is_mandatory, dn.document_id"
+	+" from cccp_bagic.document_name dn INNER JOIN cccp_bagic.product_master pm on pm.product_category=dn.product_category INNER JOIN rcs_claims.policy_details pd ON pd.product_code=pm.code\n"
+   		+ "INNER JOIN rcs_claims.claim_details cd on cd.policy_details_id=pd.id WHERE cd.claim_number=:claimNumber AND cd.is_active=true AND dn.is_mandatory=true AND dn.is_active=true", nativeQuery = true)
+   List<Object[]> getDefaultMandatoryDocs(@Param("claimNumber")String claimNumber);
+
+
+----------------------------------
